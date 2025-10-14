@@ -31,6 +31,30 @@ body {
   position: relative;
 }
 
+.left-panel::-webkit-scrollbar {
+  width: 10px;
+}
+
+.left-panel::-webkit-scrollbar-track {
+  background: #0a0a0a;
+  border-radius: 5px;
+}
+
+.left-panel::-webkit-scrollbar-thumb {
+  background: #333333;
+  border-radius: 5px;
+  border: 2px solid #0a0a0a;
+}
+
+.left-panel::-webkit-scrollbar-thumb:hover {
+  background: #555555;
+}
+
+.left-panel {
+  scrollbar-width: thin;
+  scrollbar-color: #333333 #0a0a0a;
+}
+
 .left-panel.collapsed {
   width: 50px;
   padding: 20px 10px;
@@ -597,4 +621,36 @@ h2 {
   background-color: #1a1a1a;
   color: #888888;
   border-color: #333333;
+}
+
+.script-save-section {
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid #222222;
+}
+
+.save-load-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.save-script-button,
+.load-script-button {
+  flex: 1;
+  padding: 10px;
+  background-color: #1a1a1a;
+  color: #ffffff;
+  border: 1px solid #333333;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 0.9em;
+  font-weight: 400;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.save-script-button:hover,
+.load-script-button:hover {
+  background-color: #2a2a2a;
+  border-color: #555555;
 }

@@ -486,18 +486,41 @@ const App: React.FC = () => {
     setIsTranslating(true);
     try {
       const textToTranslate = formatDialoguesOnly();
-      const response = await fetch('https://api.mymemory.translated.net/get', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `q=${encodeURIComponent(textToTranslate)}&langpair=pt|es`
-      });
-      const data = await response.json();
 
-      if (data.responseData && data.responseData.translatedText) {
-        setTranslatedDialogues(data.responseData.translatedText);
-      } else {
-        alert('Erro ao traduzir');
+      const chunkSize = 400;
+      const lines = textToTranslate.split('\n');
+      const chunks: string[] = [];
+      let currentChunk = '';
+
+      for (const line of lines) {
+        if ((currentChunk + line + '\n').length > chunkSize && currentChunk) {
+          chunks.push(currentChunk.trim());
+          currentChunk = line + '\n';
+        } else {
+          currentChunk += line + '\n';
+        }
       }
+
+      if (currentChunk.trim()) {
+        chunks.push(currentChunk.trim());
+      }
+
+      const translatedChunks: string[] = [];
+
+      for (const chunk of chunks) {
+        const response = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(chunk)}&langpair=pt|es`);
+        const data = await response.json();
+
+        if (data.responseData && data.responseData.translatedText) {
+          translatedChunks.push(data.responseData.translatedText);
+        } else {
+          throw new Error('Erro ao traduzir chunk');
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
+
+      setTranslatedDialogues(translatedChunks.join('\n'));
     } catch (error) {
       console.error('Erro na tradução:', error);
       alert('Erro ao traduzir');
@@ -558,6 +581,49 @@ const App: React.FC = () => {
 
   const deleteIdea = (index: number) => {
     setIdeas(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const saveScriptToFile = () => {
+    const scriptData = {
+      scenes,
+      notes,
+      ideas,
+      counter,
+      savedAt: new Date().toISOString()
+    };
+
+    const blob = new Blob([JSON.stringify(scriptData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `roteiro_${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const loadScriptFromFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const scriptData = JSON.parse(event.target?.result as string);
+        if (scriptData.scenes) setScenes(scriptData.scenes);
+        if (scriptData.notes) setNotes(scriptData.notes);
+        if (scriptData.ideas) setIdeas(scriptData.ideas);
+        if (scriptData.counter !== undefined) setCounter(scriptData.counter);
+        alert('Roteiro carregado com sucesso!');
+      } catch (error) {
+        console.error('Erro ao carregar roteiro:', error);
+        alert('Erro ao carregar roteiro. Verifique se o arquivo é válido.');
+      }
+    };
+    reader.readAsText(file);
+
+    e.target.value = '';
   };
 
   const handleCounterMouseUp = () => {
@@ -661,6 +727,24 @@ const App: React.FC = () => {
                     </div>
                   );
                 })}
+              </div>
+
+              <div className="script-save-section">
+                <h3>Salvar/Carregar Roteiro</h3>
+                <div className="save-load-buttons">
+                  <button className="save-script-button" onClick={saveScriptToFile}>
+                    Salvar Roteiro
+                  </button>
+                  <label className="load-script-button">
+                    Carregar
+                    <input
+                      type="file"
+                      accept=".json"
+                      onChange={loadScriptFromFile}
+                      style={{ display: 'none' }}
+                    />
+                  </label>
+                </div>
               </div>
             </div>
           </div>
