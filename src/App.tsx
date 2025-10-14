@@ -177,6 +177,8 @@ const App: React.FC = () => {
   const [notes, setNotes] = useState<string>('');
   const [ideas, setIdeas] = useState<string[]>([]);
   const [newIdea, setNewIdea] = useState<string>('');
+  const [savedScripts, setSavedScripts] = useState<Array<{name: string, data: any}>>([]);
+  const [newScriptName, setNewScriptName] = useState<string>('');
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const activeSceneRef = useRef<string | null>(null);
   const dialogueRecognitionRef = useRef<SpeechRecognition | null>(null);
@@ -208,6 +210,14 @@ const App: React.FC = () => {
         setIdeas(JSON.parse(savedIdeas));
       } catch {
         console.warn('Erro ao carregar ideias salvas');
+      }
+    }
+    const savedScriptsList = localStorage.getItem('roteiro_saved_scripts');
+    if (savedScriptsList) {
+      try {
+        setSavedScripts(JSON.parse(savedScriptsList));
+      } catch {
+        console.warn('Erro ao carregar roteiros salvos');
       }
     }
   }, []);
@@ -583,7 +593,12 @@ const App: React.FC = () => {
     setIdeas(prev => prev.filter((_, i) => i !== index));
   };
 
-  const saveScriptToFile = () => {
+  const saveScript = () => {
+    if (!newScriptName.trim()) {
+      alert('Digite um nome para o roteiro');
+      return;
+    }
+
     const scriptData = {
       scenes,
       notes,
@@ -592,38 +607,40 @@ const App: React.FC = () => {
       savedAt: new Date().toISOString()
     };
 
-    const blob = new Blob([JSON.stringify(scriptData, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `roteiro_${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    const newSaved = {
+      name: newScriptName.trim(),
+      data: scriptData
+    };
+
+    const updated = [...savedScripts, newSaved];
+    setSavedScripts(updated);
+    localStorage.setItem('roteiro_saved_scripts', JSON.stringify(updated));
+    setNewScriptName('');
   };
 
-  const loadScriptFromFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const loadScript = (index: number) => {
+    const script = savedScripts[index];
+    if (!script) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const scriptData = JSON.parse(event.target?.result as string);
-        if (scriptData.scenes) setScenes(scriptData.scenes);
-        if (scriptData.notes) setNotes(scriptData.notes);
-        if (scriptData.ideas) setIdeas(scriptData.ideas);
-        if (scriptData.counter !== undefined) setCounter(scriptData.counter);
-        alert('Roteiro carregado com sucesso!');
-      } catch (error) {
-        console.error('Erro ao carregar roteiro:', error);
-        alert('Erro ao carregar roteiro. Verifique se o arquivo é válido.');
-      }
-    };
-    reader.readAsText(file);
+    const { data } = script;
+    if (data.scenes) setScenes(data.scenes);
+    if (data.notes) setNotes(data.notes);
+    if (data.ideas) setIdeas(data.ideas);
+    if (data.counter !== undefined) setCounter(data.counter);
+  };
 
-    e.target.value = '';
+  const deleteScript = (index: number) => {
+    const updated = savedScripts.filter((_, i) => i !== index);
+    setSavedScripts(updated);
+    localStorage.setItem('roteiro_saved_scripts', JSON.stringify(updated));
+  };
+
+  const clearScript = () => {
+    if (!confirm('Tem certeza que deseja limpar todo o roteiro atual?')) return;
+
+    setScenes([]);
+    setNotes('');
+    setCounter(0);
   };
 
   const handleCounterMouseUp = () => {
@@ -731,19 +748,44 @@ const App: React.FC = () => {
 
               <div className="script-save-section">
                 <h3>Salvar/Carregar Roteiro</h3>
-                <div className="save-load-buttons">
-                  <button className="save-script-button" onClick={saveScriptToFile}>
-                    Salvar Roteiro
+                <div className="idea-input-container">
+                  <input
+                    type="text"
+                    className="idea-input"
+                    value={newScriptName}
+                    onChange={(e) => setNewScriptName(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && saveScript()}
+                    placeholder="Nome do roteiro..."
+                  />
+                  <button className="add-idea-button" onClick={saveScript}>
+                    +
                   </button>
-                  <label className="load-script-button">
-                    Carregar
-                    <input
-                      type="file"
-                      accept=".json"
-                      onChange={loadScriptFromFile}
-                      style={{ display: 'none' }}
-                    />
-                  </label>
+                </div>
+                <button className="clear-script-button" onClick={clearScript}>
+                  Limpar Roteiro
+                </button>
+                <div className="ideas-list">
+                  {savedScripts.map((script, index) => (
+                    <div key={index} className="idea-item">
+                      <span className="idea-text">{script.name}</span>
+                      <div className="script-item-actions">
+                        <button
+                          className="load-script-btn"
+                          onClick={() => loadScript(index)}
+                          title="Carregar roteiro"
+                        >
+                          ↓
+                        </button>
+                        <button
+                          className="delete-idea-button"
+                          onClick={() => deleteScript(index)}
+                          title="Deletar roteiro"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
